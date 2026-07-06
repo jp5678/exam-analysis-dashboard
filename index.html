@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시험 성적 분석 대시보드</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- 배경 장식 (떠다니는 블러 원) -->
+<div class="bg-blob b1"></div>
+<div class="bg-blob b2"></div>
+<div class="bg-blob b3"></div>
+<div class="hdr">
+  <div class="hdr-icon">📊</div>
+  <div><h1>시험 성적 분석 대시보드</h1>
+  <p>문항분석표 · 성적분포도 · 종합성적현황 업로드 → 자동 분석</p></div>
+  <div class="hdr-right" style="display:flex;gap:10px;align-items:center">
+    <button class="ai-btn" onclick="runAIAnalysis()">🤖 AI 분석</button>
+    <button class="reset-btn" onclick="resetAll()">🔄 초기화</button>
+    <button class="manual-btn" onclick="window.open('manual.html','_blank')">📖 메뉴얼</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="wrap">
+
+<!-- 자동 저장 복원 배너 -->
+<div class="restore-banner" id="restoreBanner">
+  <span style="flex:1" id="restoreInfo"></span>
+  <button class="tb-btn" onclick="restoreAutosave()">↩️ 복원</button>
+  <button class="tb-btn" onclick="dismissRestore()">닫기</button>
+</div>
+
+<!-- UPLOAD -->
+<div class="up-grid">
+  <div class="up-card" id="drop0" onclick="document.getElementById('f0').click()">
+    <input type="file" class="up-input" id="f0" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="loadFile(this,0)">
+    <div class="fbdg fb1">파일 1</div>
+    <div class="up-icon" id="ico0">📋</div>
+    <div class="up-title">문항분석표</div>
+    <div class="up-desc" id="desc-f1">문항별 정답률·변별도·난이도·<br>평균·표준편차 데이터</div>
+    <div class="up-fname" id="fn0"></div><div class="up-status" id="st0"></div>
+  </div>
+  <div class="up-card" id="drop1" onclick="document.getElementById('f1').click()">
+    <input type="file" class="up-input" id="f1" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="loadFile(this,1)">
+    <div class="fbdg fb2">파일 2</div>
+    <div class="up-icon" id="ico1">📊</div>
+    <div class="up-title">성적분포도</div>
+    <div class="up-desc">0점~100점 성적 분포 데이터<br>(점수별 인원수 또는 개인 점수)</div>
+    <div class="up-fname" id="fn1"></div><div class="up-status" id="st1"></div>
+  </div>
+  <div class="up-card" id="drop2" onclick="document.getElementById('f2').click()">
+    <input type="file" class="up-input" id="f2" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="loadFile(this,2)">
+    <div class="fbdg fb3">파일 3</div>
+    <div class="up-icon" id="ico2">🗂️</div>
+    <div class="up-title">종합성적현황</div>
+    <div class="up-desc" id="desc-f3">시트명 = 반 이름<br>전체 시트 자동 읽기</div>
+    <div class="up-fname" id="fn2"></div><div class="up-status" id="st2"></div>
+    <div class="sheet-tags" id="stags2"></div>
+  </div>
+</div>
+
+<!-- 도구막대: 만점 설정 · 세션 -->
+<div class="toolbar">
+  <label>시험 만점(문항 수)</label>
+  <input id="maxScoreInput" class="max-input" type="number" min="1" max="1000" value="40">
+  <button class="tb-btn" onclick="setMaxScoreManual()">적용</button>
+  <span class="tb-note" id="maxAutoNote">파일1 업로드 시 문항 수로 자동 설정됩니다</span>
+  <span class="sep"></span>
+  <button class="tb-btn" onclick="saveSessionFile()">💾 세션 저장</button>
+  <button class="tb-btn" onclick="loadSessionFilePicker()">📂 세션 불러오기</button>
+</div>
+
+<button class="run-btn" id="runBtn" onclick="runAnalysis()">📊 성적 분석 시작</button>
+<div class="loading" id="loading"><div class="spin"></div><p>데이터 분석 중…</p></div>
+
+<!-- DASHBOARD -->
+<div class="dash" id="dash">
+  <!-- 만점 초과 점수 경고 -->
+  <div class="warn-banner" id="warnBanner"></div>
+
+  <!-- SUMMARY (파일3 기반) -->
+  <div class="sum-grid">
+    <div class="sum-card"><div class="sum-lbl" id="c-n-lbl">총 학생 수</div><div class="sum-val" id="c-n">-</div><div class="sum-sub" id="c-cls">-</div></div>
+    <div class="sum-card"><div class="sum-lbl" id="c-avg-lbl">평균 점수</div><div class="sum-val" id="c-avg">-</div><div class="sum-sub" id="c-avg-sub">점/40</div></div>
+    <div class="sum-card"><div class="sum-lbl" id="c-max-lbl">최고점</div><div class="sum-val" id="c-max">-</div><div class="sum-sub" id="c-max-sub">(환산 -점)</div></div>
+    <div class="sum-card"><div class="sum-lbl" id="c-min-lbl">최저점</div><div class="sum-val" id="c-min">-</div><div class="sum-sub" id="c-min-sub">(환산 -점)</div></div>
+    <div class="sum-card"><div class="sum-lbl" id="c-sd-lbl">표준편차</div><div class="sum-val" id="c-sd">-</div><div class="sum-sub">점(원점수)</div></div>
+    <div class="sum-card"><div class="sum-lbl" id="c-pass-lbl">성취율 (환산 70점↑)</div><div class="sum-val" id="c-pass">-</div><div class="sum-sub">%</div></div>
+  </div>
+
+  <!-- PDF 로딩 오버레이 -->
+  <div class="pdf-overlay" id="pdfOverlay">
+    <div class="pdf-box">
+      <div class="spin" style="margin:0 auto 10px"></div>
+      <strong id="pdfStatus">PDF 생성 중…</strong>
+      <p id="pdfSub">잠시만 기다려 주세요</p>
+    </div>
+  </div>
+
+  <!-- 전체 PDF / 인쇄 버튼 -->
+  <div class="pdf-all-bar">
+    <button class="pdf-all-btn" onclick="exportAllPDF()">📄 전체 분석 PDF 저장</button>
+    <button class="pdf-all-btn" style="background:#059669" onclick="exportCurrentTabPDF()">📄 현재 탭 PDF 저장</button>
+    <button class="pdf-all-btn" style="background:#7c3aed" onclick="printAll()">🖨️ 인쇄용 PDF (전체 탭 · 텍스트 선택 가능)</button>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-nav">
+    <button class="tab-btn on"  onclick="tab('items',this)"  id="tbtn-items">📋 문항분석 &amp; 난이도</button>
+    <button class="tab-btn"     onclick="tab('scores',this)" id="tbtn-scores">📊 성적분포</button>
+    <button class="tab-btn"     onclick="tab('top10',this)"  id="tbtn-top10">🔴 오답 TOP 10</button>
+    <button class="tab-btn"     onclick="tab('disc',this)"   id="tbtn-disc">🎯 문항 변별도</button>
+    <button class="tab-btn"     onclick="tab('compare',this)"id="tbtn-compare">⚖️ 반별 분석</button>
+    <button class="tab-btn"     onclick="tab('rank',this)"   id="tbtn-rank">🏆 성적 현황</button>
+    <button class="tab-btn"     onclick="tab('trend',this)"  id="tbtn-trend">📈 시험 비교</button>
+    <button class="tab-btn"     onclick="tab('cqi',this)"    id="tbtn-cqi">📑 CQI 보고서</button>
+  </div>
+
+  <!-- ① 문항분석 (파일1) -->
+  <div class="tab-pane on" id="tp-items">
+    <span class="src-bdg sb1">📋 파일1 · 문항분석표</span>
+    <div class="diff-row" id="diffRow"></div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-ttl">📊 문항별 정답률 <small>색상 = 난이도</small></div>
+        <div class="ch tall"><canvas id="chItem"></canvas></div>
+        <div class="exp-btns"><button class="exp-btn" onclick="savePng('chItem')">PNG</button><button class="exp-btn pdf" onclick="exportTabPDF('tp-items')">PDF</button></div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-ttl">🥧 난이도 분포</div>
+          <div class="ch sm"><canvas id="chDiffPie"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-ttl">📈 정답률 분포</div>
+          <div class="ch sm"><canvas id="chCrDist"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <!-- 난이도 분류 카드 -->
+    <div class="card">
+      <div class="card-ttl">🎯 문항별 난이도 분류 <small>난이도 그룹별 문항 목록 및 평균 정답률</small></div>
+      <div class="diff-classify" id="diffClassify"></div>
+    </div>
+
+    <!-- 난이도 순 정렬 차트 + 통계 -->
+    <div class="g2">
+      <div class="card">
+        <div class="card-ttl">📉 난이도 순 정렬 <small>정답률 오름차순 — 어려운 문항 → 쉬운 문항</small></div>
+        <div class="ch tall"><canvas id="chDiffSorted"></canvas></div>
+        <div class="exp-btns"><button class="exp-btn" onclick="savePng('chDiffSorted')">PNG</button></div>
+      </div>
+      <div class="card">
+        <div class="card-ttl">📊 난이도별 통계 요약</div>
+        <div id="diffStatSummary"></div>
+      </div>
+    </div>
+
+    <!-- 상세표 -->
+    <div class="card">
+      <div class="card-ttl">📋 문항 분석 상세표 <small>헤더 클릭 정렬</small></div>
+      <div class="tbl-wrap"><table id="tItem">
+        <thead><tr>
+          <th onclick="sortTbl('tItem',0)">문항</th>
+          <th onclick="sortTbl('tItem',1)">정답률</th>
+          <th onclick="sortTbl('tItem',2)">오답률</th>
+          <th onclick="sortTbl('tItem',3)">변별도</th>
+          <th onclick="sortTbl('tItem',4)">평균</th>
+          <th onclick="sortTbl('tItem',5)">표준편차</th>
+          <th>난이도</th>
+        </tr></thead>
+        <tbody id="tbItem"></tbody>
+      </table></div>
+      <div class="exp-btns"><button class="exp-btn" onclick="saveCsv('tItem','문항분석')">CSV</button></div>
+    </div>
+  </div>
+
+  <!-- ② 성적분포 (파일2) -->
+  <div class="tab-pane" id="tp-scores">
+    <span class="src-bdg sb2">📊 파일2 · 성적분포도 (0~100점)</span>
+    <div class="g2">
+      <div class="card">
+        <div class="card-ttl">📊 성적 분포 히스토그램</div>
+        <div class="ch tall"><canvas id="chHist"></canvas></div>
+        <div class="exp-btns"><button class="exp-btn" onclick="savePng('chHist')">PNG</button><button class="exp-btn pdf" onclick="exportTabPDF('tp-scores')">PDF</button></div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-ttl">🎓 성취수준 분포</div>
+          <div class="ch sm"><canvas id="chGrade"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-ttl">📊 통계 요약</div>
+          <div class="stat-grid" id="statGrid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-ttl">📈 누적 분포 곡선</div>
+      <div class="ch"><canvas id="chCdf"></canvas></div>
+    </div>
+
+    <!-- 성적분포 CSV 내보내기 -->
+    <div class="card">
+      <div class="card-ttl">📋 성적 분포 데이터 내보내기</div>
+      <div class="tbl-wrap"><table id="tScores">
+        <thead><tr>
+          <th>항목</th><th>값(원점수)</th><th>환산점수</th>
+        </tr></thead>
+        <tbody id="tbScores"></tbody>
+      </table></div>
+      <div class="exp-btns">
+        <button class="exp-btn" onclick="saveCsv('tScores','성적분포통계')">CSV (통계)</button>
+        <button class="exp-btn" onclick="saveDistCsv()">CSV (점수별 분포)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 오답 TOP10 (파일1) -->
+  <div class="tab-pane" id="tp-top10">
+    <span class="src-bdg sb1">📋 파일1 · 문항분석표 — 정답률 최저 10문항</span>
+    <div class="g2">
+      <div class="card">
+        <div class="card-ttl">🔴 정답률 최저 10문항</div>
+        <div class="ch tall"><canvas id="chTop10"></canvas></div>
+        <div class="exp-btns"><button class="exp-btn" onclick="savePng('chTop10')">PNG</button><button class="exp-btn pdf" onclick="exportTabPDF('tp-top10')">PDF</button></div>
+      </div>
+      <div class="card">
+        <div class="card-ttl">📊 오답률 구간 분포</div>
+        <div class="ch"><canvas id="chWrDist"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-ttl">📋 오답 TOP 10 상세</div>
+      <div class="tbl-wrap"><table id="tTop10">
+        <thead><tr>
+          <th>순위</th><th>문항</th>
+          <th onclick="sortTbl('tTop10',2)">정답률</th>
+          <th onclick="sortTbl('tTop10',3)">오답률</th>
+          <th onclick="sortTbl('tTop10',4)">변별도</th>
+          <th>난이도</th>
+        </tr></thead>
+        <tbody id="tbTop10"></tbody>
+      </table></div>
+      <div class="exp-btns"><button class="exp-btn" onclick="saveCsv('tTop10','오답TOP10')">CSV</button></div>
+    </div>
+  </div>
+
+  <!-- ④ 변별도 (파일1) -->
+  <div class="tab-pane" id="tp-disc">
+    <span class="src-bdg sb1">📋 파일1 · 문항분석표</span>
+    <div class="g2">
+      <div class="card">
+        <div class="card-ttl">🎯 문항별 변별도 <small>D ≥ 0.4 우수 · 0.3 양호 · 0.2 보통 · 미만 개선필요</small></div>
+        <div class="ch tall"><canvas id="chDisc"></canvas></div>
+        <div class="legend">
+          <div class="leg-item"><div class="leg-dot" style="background:#22c55e"></div>우수 ≥0.4</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#84cc16"></div>양호 ≥0.3</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#eab308"></div>보통 ≥0.2</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#ef4444"></div>개선필요 &lt;0.2</div>
+        </div>
+        <div class="exp-btns"><button class="exp-btn" onclick="savePng('chDisc')">PNG</button><button class="exp-btn pdf" onclick="exportTabPDF('tp-disc')">PDF</button></div>
+      </div>
+      <div class="card">
+        <div class="card-ttl">🔵 정답률 vs 변별도 <small>이상적: 우상단</small></div>
+        <div class="ch"><canvas id="chScatter"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-ttl">📋 변별도 상세표</div>
+      <div class="tbl-wrap"><table id="tDisc">
+        <thead><tr>
+          <th onclick="sortTbl('tDisc',0)">문항</th>
+          <th onclick="sortTbl('tDisc',1)">정답률</th>
+          <th onclick="sortTbl('tDisc',2)">변별도</th>
+          <th>평가</th>
+          <th onclick="sortTbl('tDisc',4)">평균</th>
+          <th onclick="sortTbl('tDisc',5)">표준편차</th>
+        </tr></thead>
+        <tbody id="tbDisc"></tbody>
+      </table></div>
+      <div class="exp-btns"><button class="exp-btn" onclick="saveCsv('tDisc','변별도')">CSV</button></div>
+    </div>
+  </div>
+
+  <!-- ⑤ 반별 분석 (파일3) -->
+  <div class="tab-pane" id="tp-compare">
+    <span class="src-bdg sb3" id="src-bdg-f3">🗂️ 파일3 · 종합성적현황 (<span class="ms-dyn">40</span>점 만점)</span>
+    <div class="cls-bar" id="clsBar1">
+      <label>반 선택:</label>
+    </div>
+    <div class="g11">
+      <div class="card">
+        <div class="card-ttl">📊 반별 평균·중앙값·표준편차</div>
+        <div class="ch"><canvas id="chCmpAvg"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-ttl">🎓 반별 성취수준 분포</div>
+        <div class="ch"><canvas id="chCmpGrade"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-ttl">📊 반별 성적 분포 (히스토그램 비교)</div>
+      <div class="ch tall"><canvas id="chCmpHist"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-ttl">📋 반별 통계 비교</div>
+      <div class="tbl-wrap"><table id="tCmp">
+        <thead><tr>
+          <th>반</th><th>학생수</th>
+          <th onclick="sortTbl('tCmp',2)">평균</th>
+          <th onclick="sortTbl('tCmp',3)">중앙값</th>
+          <th onclick="sortTbl('tCmp',4)">표준편차</th>
+          <th onclick="sortTbl('tCmp',5)">최고점</th>
+          <th onclick="sortTbl('tCmp',6)">최저점</th>
+          <th onclick="sortTbl('tCmp',7)">성취율(환산≥70점)</th>
+        </tr></thead>
+        <tbody id="tbCmp"></tbody>
+      </table></div>
+      <div class="exp-btns"><button class="exp-btn" onclick="saveCsv('tCmp','반별비교')">CSV</button></div>
+    </div>
+
+    <!-- 반별 미성취 학생 목록 -->
+    <div class="card">
+      <div class="card-ttl">🔴 반별 미성취(환류) 학생 현황 <small>환산점수 70점 미만</small></div>
+      <div id="remedialByClass"></div>
+      <div class="exp-btns" style="margin-top:10px">
+        <button class="exp-btn" onclick="saveCsv('tRemedial','미성취학생목록')">CSV</button>
+      </div>
+    </div>
+
+    <!-- 미성취 전체 테이블 (CSV용 숨김) -->
+    <table id="tRemedial" style="display:none">
+      <thead><tr><th>반</th><th>학번</th><th>이름</th><th>점수</th><th>환산점수</th><th>성취수준</th></tr></thead>
+      <tbody id="tbRemedial"></tbody>
+    </table>
+  </div>
+
+  <!-- ⑥ 성적 현황 (파일3) -->
+  <div class="tab-pane" id="tp-rank">
+    <span class="src-bdg sb3">🗂️ 파일3 · 종합성적현황</span>
+    <div class="cls-bar" id="clsBar2"><label>반 선택:</label></div>
+    <div class="card">
+      <div class="card-ttl">🏆 성적 현황 <small id="rankTitle">전체</small></div>
+      <div class="tbl-wrap"><table id="tRank">
+        <thead><tr>
+          <th onclick="sortTbl('tRank',0)">석차</th>
+          <th onclick="sortTbl('tRank',1)">반</th>
+          <th onclick="sortTbl('tRank',2)">학번</th>
+          <th onclick="sortTbl('tRank',3)">이름</th>
+          <th onclick="sortTbl('tRank',4)" id="th-rank-score">점수(<span class="ms-dyn">40</span>점)</th>
+          <th onclick="sortTbl('tRank',5)">환산점수(100점)</th>
+          <th>성취수준</th>
+        </tr></thead>
+        <tbody id="tbRank"></tbody>
+      </table></div>
+      <div class="exp-btns">
+        <button class="exp-btn" onclick="saveCsv('tRank','성적현황')">CSV</button>
+        <button class="exp-btn pdf" onclick="exportStudentReports()">👤 개인별 리포트 PDF (1인 1페이지)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ 시험 비교 -->
+  <div class="tab-pane" id="tp-trend">
+    <span class="src-bdg" style="background:#ede9fe;color:#6d28d9">📈 시험 비교 · 저장된 세션(JSON)과 현재 분석의 추이 비교</span>
+    <div class="card">
+      <div class="card-ttl">📈 시험 간 추이 비교 <small>중간/기말, 학기별 성취도 변화를 확인하세요 (모든 지표는 100점 환산 기준)</small></div>
+      <div class="trend-toolbar">
+        <button class="tb-btn" onclick="trendAddCurrent()">➕ 현재 분석 추가</button>
+        <button class="tb-btn" onclick="trendLoadFiles()">📂 세션 JSON 불러오기 (여러 개 가능)</button>
+        <button class="tb-btn" onclick="trendClear()">🗑 목록 비우기</button>
+      </div>
+      <div id="trendBody"></div>
+    </div>
+  </div>
+
+  <!-- ⑧ CQI 보고서 -->
+  <div class="tab-pane" id="tp-cqi">
+    <span class="src-bdg" style="background:#dbeafe;color:#1d4ed8">📑 CQI 보고서 · 교과목 학습성과 지속적 질 개선</span>
+
+    <!-- 초기 안내 (분석 실행 전) -->
+    <div id="cqiInitMsg" class="cqi-no-data" style="margin-top:12px">
+      <span style="font-size:36px;display:block;margin-bottom:12px">📑</span>
+      <strong style="font-size:14px;color:var(--txt)">CQI 보고서를 생성하려면 먼저 성적 분석을 실행하세요.</strong><br>
+      <span style="font-size:12px;margin-top:6px;display:inline-block">파일을 업로드하고 <strong>성적 분석 시작</strong> 버튼을 클릭하면 CQI 입력 양식이 표시됩니다.</span>
+    </div>
+
+    <!-- 교과목 정보 입력 (분석 후 표시) -->
+    <div id="cqiFormArea" style="display:none">
+      <div class="cqi-info-bar">
+        <label>교과목명</label>
+        <input class="cqi-input" id="cqi-subject" placeholder="파일1 자동 입력 또는 직접 입력"
+          style="background:#f0f9ff;color:#0369a1;font-weight:600">
+        <label>대상학과</label>
+        <input class="cqi-input" id="cqi-dept" value="간호학과">
+        <label>이수구분</label>
+        <select class="cqi-select" id="cqi-type">
+          <option value="">선택하세요</option>
+          <option>전공필수</option><option>전공선택</option>
+          <option>교양필수</option><option>교양선택</option>
+        </select>
+        <label>수강학년</label>
+        <select class="cqi-select" id="cqi-grade">
+          <option value="">선택하세요</option>
+          <option>1학년</option><option>2학년</option>
+          <option>3학년</option><option>4학년</option>
+          <option>전공심화과정</option>
+        </select>
+      </div>
+      <div class="cqi-info-bar" style="margin-top:0">
+        <label>학점/시수</label>
+        <input class="cqi-input" id="cqi-credit" placeholder="예: 2학점/2시수">
+        <label>수강인원</label>
+        <input class="cqi-input" id="cqi-enroll" placeholder="파일3 자동 입력"
+          style="background:#f0f9ff;color:#0369a1;font-weight:600">
+        <label>작성일</label>
+        <input type="date" class="cqi-input" id="cqi-date" style="cursor:pointer">
+        <label>담당교수</label>
+        <input class="cqi-input" id="cqi-professor" value="정종필 교수">
+      </div>
+
+      <div class="cqi-gen-row">
+        <button class="cqi-gen-btn" style="flex:1" onclick="generateCQI()">📑 CQI 보고서 자동 생성</button>
+        <button class="cqi-gen-btn cqi-ai-btn" onclick="generateCQIDraft()" title="Claude API 키 등록 시 ⑥ 문제점·⑦ 환류 계획·⑧ 개선 목표 초안을 AI가 작성합니다">✨ AI 초안 (⑥·⑦·⑧)</button>
+      </div>
+
+      <!-- 보고서 출력 영역 -->
+      <div id="cqiReport">
+        <div class="cqi-no-data">
+          <span style="font-size:32px;display:block;margin-bottom:10px">📑</span>
+          교과목 정보를 입력하고 <strong>CQI 보고서 자동 생성</strong> 버튼을 클릭하세요.<br>
+          <small style="color:var(--muted)">파일1·2·3 데이터를 기반으로 자동 분석됩니다. 재생성해도 ⑥⑦⑧ 입력 내용은 유지됩니다.</small>
+        </div>
+      </div>
+
+      <div class="cqi-exp-bar" id="cqiExpBar" style="display:none">
+        <button class="pdf-all-btn" onclick="exportCQIPDF()">📄 CQI 보고서 PDF 저장</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /dash -->
+</div><!-- /wrap -->
+
+<!-- AI 분석 모달 -->
+<div class="ai-overlay" id="aiOverlay" onclick="if(event.target===this)closeAIModal()">
+  <div class="ai-box">
+    <div class="ai-hdr">
+      <div class="ai-hdr-title">🤖 AI 분석 결과 <span style="font-weight:400;font-size:11px;opacity:.85">— 업로드 데이터 기반 자동 분석</span></div>
+      <button class="ai-hdr-close" onclick="closeAIModal()">✕</button>
+    </div>
+    <div class="ai-content" id="aiContent"></div>
+    <div class="ai-footer">
+      <button class="ai-close-btn" onclick="configureAIKey()" title="Claude API 키 등록/변경 (이 브라우저에만 저장)">⚙️ API 키</button>
+      <button class="ai-copy-btn" style="background:linear-gradient(135deg,#7c3aed,#4f46e5)" onclick="runClaudeDeepAnalysis()">✨ Claude 심층 분석</button>
+      <button class="ai-copy-btn" onclick="copyAIReport()">📋 텍스트 복사</button>
+      <button class="ai-copy-btn" style="background:#16a34a" onclick="exportAIPDF()">📄 PDF 저장</button>
+      <button class="ai-close-btn" onclick="closeAIModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <img class="footer-logo" src="jeffrey.png" alt="청암대학교 간호학과 로고">
+  <div class="footer-info">
+    <span class="footer-org">청암대학교 간호학과 · 정종필 교수 · imjp5678@scjc.ac.kr</span>
+    <span class="footer-note">본 플랫폼의 분석 결과는 업로드된 데이터를 기반으로 자동 생성됩니다. 자세히 검토 후 활용하시기 바랍니다.</span>
+  </div>
+</footer>
+
+<!-- 라이브러리: 로컬 우선(오프라인 지원), 없으면 CDN 폴백 -->
+<script>
+function libFallback(url){
+  var s = document.createElement('script');
+  s.src = url;
+  document.head.appendChild(s);
+}
+</script>
+<script src="libs/xlsx.full.min.js"    onerror="libFallback('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')"></script>
+<script src="libs/chart.umd.min.js"    onerror="libFallback('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js')"></script>
+<script src="libs/html2canvas.min.js"  onerror="libFallback('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')"></script>
+<script src="libs/jspdf.umd.min.js"    onerror="libFallback('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')"></script>
+
+<!-- 애플리케이션 -->
+<script src="js/core.js"></script>
+<script src="js/parse.js"></script>
+<script src="js/render.js"></script>
+<script src="js/export.js"></script>
+<script src="js/report.js"></script>
+<script src="js/session.js"></script>
+</body>
+</html>

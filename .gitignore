@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# 로컬 설정 · 작업 산출물
+.claude/
+docs/
+
+# 리팩토링 이전 백업본
+index_backup_v1.html
+manual_backup_v1.html
+
+# 임시 파일
+testdata/
+scratchpad/
+*.log
