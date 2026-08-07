@@ -158,12 +158,12 @@ body.print-all .man-sec+.man-sec{margin-top:20px}
     <div class="sidebar-title">목차</div>
     <a class="nav-item on" onclick="manTab('overview',this)"><span class="nav-icon">🏠</span>개요 &amp; 빠른 시작</a>
     <a class="nav-item" onclick="manTab('upload',this)"><span class="nav-icon">📂</span>파일 업로드</a>
-    <a class="nav-item" onclick="manTab('tabs',this)"><span class="nav-icon">📊</span>분석 탭 안내</a>
+    <a class="nav-item" onclick="manTab('tabs',this)"><span class="nav-icon">📊</span>분석 탭 안내 <span class="badge-new">NEW</span></a>
     <a class="nav-item" onclick="manTab('export',this)"><span class="nav-icon">💾</span>내보내기 &amp; 인쇄 <span class="badge-new">NEW</span></a>
     <a class="nav-item" onclick="manTab('session',this)"><span class="nav-icon">🗄️</span>세션 저장·시험 비교 <span class="badge-new">NEW</span></a>
     <a class="nav-item" onclick="manTab('ai',this)"><span class="nav-icon">🤖</span>AI 분석</a>
     <a class="nav-item" onclick="manTab('cqi',this)"><span class="nav-icon">📑</span>CQI 보고서</a>
-    <a class="nav-item" onclick="manTab('terms',this)"><span class="nav-icon">📚</span>용어 설명</a>
+    <a class="nav-item" onclick="manTab('terms',this)"><span class="nav-icon">📚</span>용어 설명 <span class="badge-new">NEW</span></a>
   </nav>
 
   <main class="content">
@@ -216,7 +216,7 @@ body.print-all .man-sec+.man-sec{margin-top:20px}
         <div class="man-h2">📋 분석 탭 목록</div>
         <table class="man-table">
           <tr><th style="width:32%">탭</th><th>설명</th><th style="width:18%">필요 파일</th></tr>
-          <tr><td>📋 문항분석 &amp; 난이도</td><td>문항별 정답률, 변별도, 난이도 분류 차트 및 상세표</td><td>파일 1</td></tr>
+          <tr><td>📋 문항분석 &amp; 난이도</td><td>문항별 정답률, 변별도, 난이도 분류 차트 및 상세표. 상세표 하단에 <strong>전체 평균 행</strong>과 <strong>평균 변별도·난이도 해설</strong> 표시 <span class="badge-new">NEW</span></td><td>파일 1</td></tr>
           <tr><td>📊 성적분포</td><td>히스토그램(7구간), 성취수준 분포, 누적 분포 곡선</td><td>파일 2</td></tr>
           <tr><td>🔴 오답 TOP 10</td><td>정답률 최하위 10문항 분석</td><td>파일 1</td></tr>
           <tr><td>🎯 문항 변별도</td><td>변별도 막대차트, 정답률 vs 변별도 산점도</td><td>파일 1</td></tr>
@@ -284,6 +284,7 @@ body.print-all .man-sec+.man-sec{margin-top:20px}
             <div class="tab-card-hdr">📋 문항분석 &amp; 난이도 <span class="man-badge" style="background:#dbeafe;color:#1d4ed8;font-size:9px">파일 1</span></div>
             <div class="tab-card-body">
               문항별 정답률 막대차트(색상=난이도), 난이도 분포 파이차트, 정답률 분포, 난이도 분류 카드(매우 쉬움~매우 어려움), 난이도 순 정렬 차트, 문항 분석 상세표. 헤더 클릭으로 정렬 가능.
+              상세표 <strong>맨 아래에 전체 평균 행</strong>이 고정 표시되며, 그 아래 <strong>평균 변별도·난이도 해설 카드</strong>가 이어집니다. <span class="badge-new">NEW</span>
             </div>
           </div>
           <div class="tab-card">
@@ -317,6 +318,41 @@ body.print-all .man-sec+.man-sec{margin-top:20px}
             </div>
           </div>
         </div>
+
+        <div class="man-h2">📉 전체 평균 행 &amp; 해설 카드 <span class="badge-new">NEW</span></div>
+        <p style="font-size:12.5px;color:#334155;line-height:1.8;margin-bottom:10px">
+          📋 문항분석 &amp; 난이도 탭의 <strong>문항 분석 상세표</strong> 맨 아래에 전체 문항의 평균값이 한 행으로 표시되고,
+          바로 아래 <strong>🧭 평균 변별도 · 난이도 해설</strong> 카드가 그 값의 의미를 문장으로 풀어줍니다.
+        </p>
+        <ul class="man-ul">
+          <li><strong>전체 평균 행</strong> — 정답률·오답률·변별도·평균·표준편차의 평균과, 평균 정답률을 환산한 난이도 라벨을 각 열 위치에 표시</li>
+          <li>변별도 평균 아래에는 <strong>평가 등급</strong>(우수/양호/보통/개선필요), 난이도 아래에는 <strong>난이도 지수 P</strong> 값이 함께 표시됨</li>
+          <li>헤더를 클릭해 정렬해도 <strong>평균 행은 항상 맨 아래에 고정</strong>되며, CSV로 내보내면 마지막 줄로 포함됨</li>
+          <li>값이 비어 있는 열은 <code>-</code>로, 일부 문항만 값이 있으면 <strong>"N문항 기준"</strong>이 함께 표시되어 계산 근거를 알 수 있음</li>
+        </ul>
+        <p style="font-size:12.5px;color:#334155;line-height:1.8;margin:14px 0 8px">
+          해설 카드는 세 부분으로 구성됩니다.
+        </p>
+        <table class="man-table">
+          <tr><th style="width:22%">구성</th><th>내용</th></tr>
+          <tr>
+            <td><strong>🎯 평균 변별도</strong></td>
+            <td>4단계 구간 막대(개선필요 &lt;0.2 / 보통 0.2~0.3 / 양호 0.3~0.4 / 우수 ≥0.4)에 현재 위치를 표시하고, 해당 수준의 의미와 개선 팁을 안내합니다.
+              <strong>변별도가 음수인 문항</strong>(상위권이 오히려 더 많이 틀린 문항 — 정답 오류나 발문 오해 가능성)이 있으면 최우선 검토 대상으로 경고합니다.</td>
+          </tr>
+          <tr>
+            <td><strong>📐 평균 난이도</strong></td>
+            <td>5단계 구간 막대(매우 어려움 &lt;0.4 ~ 매우 쉬움 &gt;0.85)에 현재 위치를 표시하고, 천장효과·바닥효과 등 해석과 함께
+              정답률 구간별 문항 구성(40% 미만 / 40~85% / 85% 초과)을 알려줍니다.</td>
+          </tr>
+          <tr>
+            <td><strong>🔎 종합 해석</strong></td>
+            <td>변별도와 난이도를 <strong>함께</strong> 읽었을 때의 시사점을 제시합니다.
+              예를 들어 "쉬우면서 변별도도 낮음"이면 난이도를 올려 변별도까지 개선하는 방향을, "어려우면서 변별도도 낮음"이면 출제 범위와 문항 오류 점검을 권고합니다.</td>
+          </tr>
+        </table>
+        <div class="man-tip">💡 해설 문구는 <strong>계산된 값에 따라 자동으로 바뀝니다.</strong> 파일1에 변별도 열이 없으면 변별도 해설 카드만 안내 문구로 대체되고, 난이도 해설은 정답률만으로 정상 표시됩니다.</div>
+        <div class="man-warn">⚠️ 해설은 일반적인 교육평가 기준(D ≥ 0.3 양호, P 0.5~0.7 적정)에 따른 <strong>참고용 자동 문구</strong>입니다. 과목 특성, 출제 목적(준거참조 vs 규준참조), 응시 인원에 따라 실제 해석은 달라질 수 있으므로, 최종 판단은 교수자의 검토를 거쳐야 합니다.</div>
 
         <div class="man-h2">⚖️ 반 선택 필터 기능</div>
         <ul class="man-ul">
@@ -569,6 +605,37 @@ body.print-all .man-sec+.man-sec{margin-top:20px}
             <span class="man-badge" style="background:#fef9c3;color:#92400e">보통(30~59%)</span>
             <span class="man-badge" style="background:#fed7aa;color:#c2410c">어려움(60~79%)</span>
             <span class="man-badge" style="background:#fee2e2;color:#dc2626">매우 어려움(80%↑)</span>
+          </div>
+        </div>
+        <div class="term-item">
+          <div class="term-word">난이도 지수 (P) <span class="badge-new">NEW</span></div>
+          <div class="term-def">
+            <strong>정답률 그 자체를 0~1 값으로 나타낸 지표</strong>입니다. 이름과 달리 <strong>값이 클수록 쉬운 문항</strong>이라는 점에 주의하세요.<br>
+            <em>예: 정답률 60% → P = 0.600</em><br>
+            위의 5단계 난이도 라벨과 같은 값을 다르게 표현한 것으로, 라벨은 <strong>분류</strong>에, P는 <strong>수치 비교·평균 계산</strong>에 쓰입니다.
+            평균 P가 <strong>0.5~0.7</strong>일 때 문항의 변별력이 가장 잘 발휘되는 것으로 알려져 있습니다.
+          </div>
+          <div class="term-badges">
+            <span class="man-badge" style="background:#fee2e2;color:#dc2626">P &lt; 0.4 매우 어려움</span>
+            <span class="man-badge" style="background:#fed7aa;color:#c2410c">0.4~0.5 어려움</span>
+            <span class="man-badge" style="background:#dcfce7;color:#15803d">0.5~0.7 적정</span>
+            <span class="man-badge" style="background:#d9f99d;color:#365314">0.7~0.85 쉬움</span>
+            <span class="man-badge" style="background:#fef9c3;color:#713f12">P &gt; 0.85 매우 쉬움</span>
+          </div>
+        </div>
+        <div class="term-item">
+          <div class="term-word">천장효과 / 바닥효과 <span class="badge-new">NEW</span></div>
+          <div class="term-def">
+            <strong>천장효과(ceiling effect)</strong> — 시험이 너무 쉬워 점수가 만점 근처에 몰리는 현상. 상위권을 가려내지 못해 변별도가 함께 떨어집니다.<br>
+            <strong>바닥효과(floor effect)</strong> — 시험이 너무 어려워 점수가 하단에 몰리는 현상. 추측(찍기)의 영향이 커지고 학습 동기에도 부정적입니다.<br>
+            두 경우 모두 평균 변별도가 낮아지므로, 해설 카드에서 난이도와 변별도를 <strong>함께</strong> 확인하는 것이 좋습니다.
+          </div>
+        </div>
+        <div class="term-item">
+          <div class="term-word">오답지 매력도 (Distractor) <span class="badge-new">NEW</span></div>
+          <div class="term-def">
+            객관식 문항에서 <strong>정답이 아닌 선택지가 얼마나 그럴듯한가</strong>를 뜻합니다. 아무도 고르지 않는 선택지가 많으면 사실상 선택지 수가 줄어든 것과 같아
+            정답률이 부풀고 변별도가 떨어집니다. 평균 변별도가 낮을 때 우선 점검할 항목입니다.
           </div>
         </div>
         <div class="term-item">
