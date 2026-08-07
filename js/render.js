@@ -471,6 +471,37 @@ function renderItems(f1){
       <td>${it.sd != null ? it.sd.toFixed(3) : '-'}</td>
       <td><span class="bdg ${it.diffCls || ''}" style="${!it.diffCls && it.diffColor ? `background:${it.diffColor}22;color:${it.diffColor}` : ''}">${it.diffLbl || '-'}</span></td>
     </tr>`).join('');
+
+  // 상세표 하단 — 전체 문항 평균 (변별도 · 난이도 포함)
+  const mean = arr => arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : null;
+  const crAll   = items.filter(i => i.cr   != null).map(i => i.cr);
+  const wrAll   = items.filter(i => i.wr   != null).map(i => i.wr);
+  const discAll = items.filter(i => i.disc != null).map(i => i.disc);
+  const avgAll  = items.filter(i => i.avg  != null).map(i => i.avg);
+  const sdAll   = items.filter(i => i.sd   != null).map(i => i.sd);
+  const mCr   = mean(crAll);
+  const mWr   = mean(wrAll);
+  const mDisc = mean(discAll);
+  const mAvg  = mean(avgAll);
+  const mSd   = mean(sdAll);
+  // 난이도 지수 P = 정답률 평균 → 5단계 난이도 라벨
+  const mDiff = mCr != null ? diffLevel(1 - mCr) : null;
+  const dEval = mDisc != null ? discEval(mDisc) : null;
+
+  // 결측이 있는 열만 몇 문항 기준으로 계산했는지 표기
+  const basis = n => (n > 0 && n < items.length) ? `<div class="tbl-avg-sub"> ${n}문항 기준</div>` : '';
+
+  document.getElementById('tfItem').innerHTML = `
+    <tr class="tbl-avg-row">
+      <td><strong>전체 평균</strong><div class="tbl-avg-sub"> ${items.length}문항</div></td>
+      <td><strong>${mCr != null ? (mCr*100).toFixed(1)+'%' : '-'}</strong>${basis(crAll.length)}</td>
+      <td><strong>${mWr != null ? (mWr*100).toFixed(1)+'%' : '-'}</strong>${basis(wrAll.length)}</td>
+      <td><strong style="color:${dEval ? dEval.col : 'inherit'}">${mDisc != null ? mDisc.toFixed(3) : '-'}</strong>
+        <div class="tbl-avg-sub"> ${dEval ? dEval.lbl : '변별도 없음'}</div>${basis(discAll.length)}</td>
+      <td><strong>${mAvg != null ? (mAvg*100).toFixed(1)+'%' : '-'}</strong>${basis(avgAll.length)}</td>
+      <td><strong>${mSd != null ? mSd.toFixed(3) : '-'}</strong>${basis(sdAll.length)}</td>
+      <td>${mDiff ? `<span class="bdg ${mDiff.cls}">${mDiff.lbl}</span><div class="tbl-avg-sub"> 지수 P ${mCr.toFixed(3)}</div>` : '-'}</td>
+    </tr>`;
 }
 
 // ═══════════════════════════
