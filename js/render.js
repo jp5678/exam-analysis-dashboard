@@ -502,6 +502,174 @@ function renderItems(f1){
       <td><strong>${mSd != null ? mSd.toFixed(3) : '-'}</strong>${basis(sdAll.length)}</td>
       <td>${mDiff ? `<span class="bdg ${mDiff.cls}">${mDiff.lbl}</span><div class="tbl-avg-sub"> 지수 P ${mCr.toFixed(3)}</div>` : '-'}</td>
     </tr>`;
+
+  // 평균 변별도·난이도 해설
+  renderAvgInterp(items, mDisc, mCr, discAll.length);
+}
+
+// ═══════════════════════════
+// 평균 변별도 · 난이도 해설
+// ═══════════════════════════
+const INTERP_TONE = {
+  ok:   { bd:'#a7f3d0', bg:'#f0fdf4', ac:'#059669' },
+  warn: { bd:'#fde68a', bg:'#fefce8', ac:'#b45309' },
+  err:  { bd:'#fecaca', bg:'#fef2f2', ac:'#dc2626' },
+  info: { bd:'#bae6fd', bg:'#f0f9ff', ac:'#0369a1' },
+};
+
+// 평균 변별도(D) 해설
+function interpDisc(d, items){
+  if (d == null) return null;
+  const lowN  = items.filter(i => i.disc != null && i.disc < 0.2).length;
+  const negN  = items.filter(i => i.disc != null && i.disc < 0).length;
+  const highN = items.filter(i => i.disc != null && i.disc >= 0.4).length;
+
+  let tone, sum, tips;
+  if (d >= 0.4){
+    tone = 'ok';
+    sum = `평균 변별도가 <b>0.4 이상</b>으로, 상위권과 하위권 학생을 <b>매우 잘 구분</b>하는 시험입니다. 문항들이 학습 성취도를 신뢰성 있게 측정하고 있습니다.`;
+    tips = ['현행 출제 수준을 유지하세요.', '변별도가 높은 문항의 형식·발문을 다음 출제의 참고 자료로 활용할 수 있습니다.'];
+  } else if (d >= 0.3){
+    tone = 'ok';
+    sum = `평균 변별도가 <b>0.3~0.4</b> 구간으로, 성취 수준 구분력이 <b>양호</b>합니다. 일반적인 학업성취도 평가에서 권장되는 범위입니다.`;
+    tips = ['전반적으로 문제없는 수준입니다.', '변별도가 0.2 미만인 개별 문항만 선별적으로 손보면 더 좋아집니다.'];
+  } else if (d >= 0.2){
+    tone = 'warn';
+    sum = `평균 변별도가 <b>0.2~0.3</b>으로 <b>보통</b> 수준입니다. 학생 간 실력 차이를 가려내는 힘이 다소 약해, 총점이 비슷하게 몰릴 수 있습니다.`;
+    tips = ['정답률이 지나치게 높거나(90% 이상) 낮은 문항이 변별도를 끌어내리는지 확인하세요.', '매력적인 오답지(distractor)를 보강하면 변별도가 올라갑니다.'];
+  } else {
+    tone = 'err';
+    sum = `평균 변별도가 <b>0.2 미만</b>으로 <b>개선이 필요</b>합니다. 문항들이 잘하는 학생과 그렇지 않은 학생을 제대로 구분하지 못하고 있어, 점수를 성취도의 근거로 쓰기에 신중해야 합니다.`;
+    tips = ['정답률 95% 이상 또는 20% 이하 문항을 우선 재검토하세요.', '선택지가 명백히 오답이거나 발문이 모호하지 않은지 점검이 필요합니다.', '문항 수가 적으면 평균 변별도가 불안정해질 수 있습니다.'];
+  }
+  if (negN)  tips.push(`<b style="color:#dc2626">변별도가 음수인 문항 ${negN}개</b> — 상위권이 오히려 더 틀린 문항으로, 정답 오류나 발문 오해 가능성이 있어 최우선 검토 대상입니다.`);
+  else if (lowN) tips.push(`변별도 0.2 미만 문항 ${lowN}개가 평균을 낮추고 있습니다. 🎯 문항 변별도 탭에서 해당 문항을 확인하세요.`);
+  if (highN) tips.push(`변별도 0.4 이상 우수 문항은 ${highN}개입니다.`);
+
+  return { tone, sum, tips,
+    scale: [
+      { lbl:'개선필요 <0.2', on: d < 0.2,            col:'#ef4444' },
+      { lbl:'보통 0.2~0.3',  on: d >= 0.2 && d < 0.3, col:'#eab308' },
+      { lbl:'양호 0.3~0.4',  on: d >= 0.3 && d < 0.4, col:'#84cc16' },
+      { lbl:'우수 ≥0.4',     on: d >= 0.4,            col:'#22c55e' },
+    ]};
+}
+
+// 평균 난이도 지수(P = 정답률) 해설
+function interpDiff(p, items){
+  if (p == null) return null;
+  const pct    = (p*100).toFixed(1);
+  const hardN  = items.filter(i => i.cr != null && i.cr < 0.4).length;
+  const easyN  = items.filter(i => i.cr != null && i.cr > 0.85).length;
+  const midN   = items.filter(i => i.cr != null && i.cr >= 0.4 && i.cr <= 0.85).length;
+
+  let tone, sum, tips;
+  if (p > 0.85){
+    tone = 'warn';
+    sum = `평균 정답률이 <b>${pct}%</b>(지수 P ${p.toFixed(3)})로 시험이 <b>전반적으로 쉬웠습니다</b>. 대부분의 학생이 맞히는 문항이 많아 점수가 상단에 몰리는 천장효과(ceiling effect)가 나타날 수 있습니다.`;
+    tips = ['상위권을 가려낼 응용·통합형 문항을 추가하면 분포가 개선됩니다.', '난이도가 낮으면 변별도도 함께 낮아지는 경향이 있습니다.'];
+  } else if (p >= 0.7){
+    tone = 'ok';
+    sum = `평균 정답률이 <b>${pct}%</b>(지수 P ${p.toFixed(3)})로 <b>다소 쉬운 편</b>이지만 적정 범위입니다. 성취도 확인이 목적인 준거참조 평가에는 적합한 수준입니다.`;
+    tips = ['현행 수준을 유지해도 무방합니다.', '변별이 더 필요하다면 어려운 문항의 비중을 조금 늘려보세요.'];
+  } else if (p >= 0.5){
+    tone = 'ok';
+    sum = `평균 정답률이 <b>${pct}%</b>(지수 P ${p.toFixed(3)})로 <b>이상적인 난이도</b> 구간(P 0.5~0.7)입니다. 이 구간에서 문항의 변별력이 가장 잘 발휘됩니다.`;
+    tips = ['난이도 균형이 잘 잡혀 있습니다. 현행 출제 기조를 유지하세요.'];
+  } else if (p >= 0.4){
+    tone = 'warn';
+    sum = `평균 정답률이 <b>${pct}%</b>(지수 P ${p.toFixed(3)})로 <b>다소 어려운 편</b>입니다. 학생들이 충분히 학습하지 못한 영역이 있는지 확인이 필요합니다.`;
+    tips = ['오답률이 높은 문항이 특정 단원에 몰려 있는지 확인하세요.', '🔴 오답 TOP 10 탭에서 취약 영역을 파악할 수 있습니다.'];
+  } else {
+    tone = 'err';
+    sum = `평균 정답률이 <b>${pct}%</b>(지수 P ${p.toFixed(3)})로 시험이 <b>매우 어려웠습니다</b>. 점수가 하단에 몰리는 바닥효과(floor effect)로 학생 간 변별이 어려워지고, 학습 동기에도 부정적일 수 있습니다.`;
+    tips = ['출제 범위와 수업에서 다룬 내용이 일치하는지 점검이 필요합니다.', '문항 자체의 오류나 지나친 지엽성 여부를 검토하세요.', '보충 학습 및 환류 교육을 권장합니다.'];
+  }
+  tips.push(`정답률 40% 미만 <b>${hardN}개</b> · 40~85% <b>${midN}개</b> · 85% 초과 <b>${easyN}개</b>로 구성되어 있습니다.`);
+
+  return { tone, sum, tips,
+    scale: [
+      { lbl:'매우 어려움 <0.4', on: p < 0.4,             col:'#dc2626' },
+      { lbl:'어려움 0.4~0.5',   on: p >= 0.4 && p < 0.5,  col:'#f97316' },
+      { lbl:'적정 0.5~0.7',     on: p >= 0.5 && p < 0.7,  col:'#22c55e' },
+      { lbl:'쉬움 0.7~0.85',    on: p >= 0.7 && p <= 0.85,col:'#84cc16' },
+      { lbl:'매우 쉬움 >0.85',  on: p > 0.85,             col:'#eab308' },
+    ]};
+}
+
+function interpCard(icon, title, valTxt, valSub, res){
+  if (!res) return `
+    <div class="interp" style="border-color:${INTERP_TONE.info.bd};background:${INTERP_TONE.info.bg}">
+      <div class="interp-hd"><span>${icon}</span><span>${title}</span></div>
+      <div class="interp-body">데이터가 없어 해설을 제공할 수 없습니다.</div>
+    </div>`;
+  const t = INTERP_TONE[res.tone];
+  return `
+    <div class="interp" style="border-color:${t.bd};background:${t.bg}">
+      <div class="interp-hd">
+        <span>${icon}</span><span>${title}</span>
+        <span class="interp-val" style="color:${t.ac}">${valTxt}<small>${valSub}</small></span>
+      </div>
+      <div class="interp-scale">
+        ${res.scale.map(s => s.on
+          ? `<span class="on" style="background:${s.col};border-color:${s.col}">${s.lbl}</span>`
+          : `<span>${s.lbl}</span>`).join('')}
+      </div>
+      <div class="interp-body">${res.sum}</div>
+      <ul class="interp-tips">${res.tips.map(x => `<li>${x}</li>`).join('')}</ul>
+    </div>`;
+}
+
+function renderAvgInterp(items, mDisc, mCr, discN){
+  const el = document.getElementById('avgInterp');
+  if (!el) return;
+
+  const rD = interpDisc(mDisc, items);
+  const rP = interpDiff(mCr, items);
+
+  // 종합 코멘트 — 변별도와 난이도를 함께 읽었을 때의 시사점
+  let combo = '';
+  if (rD && rP){
+    let txt, tone;
+    if (mDisc < 0.2 && mCr > 0.85){
+      tone = 'err';
+      txt = '시험이 <b>쉬우면서 변별도도 낮은</b> 조합입니다. 대부분이 정답을 맞히다 보니 학생 간 차이가 드러나지 않는 전형적인 패턴으로, 난이도를 올리면 변별도도 함께 개선될 가능성이 높습니다.';
+    } else if (mDisc < 0.2 && mCr < 0.4){
+      tone = 'err';
+      txt = '시험이 <b>어려우면서 변별도도 낮은</b> 조합입니다. 상위권마저 틀리고 있어 찍기(추측)의 영향이 커진 상태일 수 있습니다. 출제 범위 적정성과 문항 오류를 함께 점검하세요.';
+    } else if (mDisc >= 0.3 && mCr >= 0.5 && mCr < 0.75){
+      tone = 'ok';
+      txt = '<b>난이도와 변별도가 모두 적정 범위</b>에 있습니다. 측정 도구로서 균형이 잘 잡힌 시험으로, 이번 결과는 학생의 성취 수준을 신뢰성 있게 반영한다고 볼 수 있습니다.';
+    } else if (mDisc >= 0.3){
+      tone = 'ok';
+      txt = '변별도는 양호한 수준입니다. 난이도만 <b>정답률 50~70%</b> 구간에 가깝게 조정하면 측정의 정밀도가 한층 높아집니다.';
+    } else {
+      tone = 'warn';
+      txt = '난이도는 크게 벗어나지 않았으나 <b>변별도에 개선 여지</b>가 있습니다. 개별 문항 단위로 정답률과 변별도를 함께 보면서, 정답률이 극단적인 문항부터 다듬는 것을 권합니다.';
+    }
+    const t = INTERP_TONE[tone];
+    combo = `
+      <div class="interp interp-combo" style="border-color:${t.bd};background:${t.bg}">
+        <div class="interp-hd"><span>🔎</span><span>종합 해석</span></div>
+        <div class="interp-body">${txt}</div>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="interp-grid">
+      ${interpCard('🎯','평균 변별도',
+        mDisc != null ? mDisc.toFixed(3) : '—',
+        mDisc != null && discN < items.length ? ` (${discN}문항)` : '', rD)}
+      ${interpCard('📐','평균 난이도',
+        mCr != null ? (mCr*100).toFixed(1)+'%' : '—',
+        mCr != null ? ` P ${mCr.toFixed(3)}` : '', rP)}
+    </div>
+    ${combo}
+    <div class="interp-note">
+      💡 <b>변별도(D)</b>는 상위 집단과 하위 집단의 정답률 차이로, 문항이 실력 차이를 얼마나 잘 가려내는지를 나타냅니다(−1~+1, 높을수록 좋음).
+      <b>난이도 지수(P)</b>는 정답률 그 자체로, <b>값이 클수록 쉬운 문항</b>입니다. 위 해설은 일반적인 교육평가 기준에 따른 참고용이며,
+      과목 특성·출제 목적(준거참조 vs 규준참조)·응시 인원에 따라 해석은 달라질 수 있습니다.
+    </div>`;
 }
 
 // ═══════════════════════════
